@@ -38,9 +38,10 @@ pub mod s3_asset_manager_vault {
 
         let cpi_ctx: CpiContext<TransferChecked> = CpiContext::new(cpi_program, cpi_accounts);
 
-        token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
-
-        Ok(())
+        match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
+            Ok(_) => Ok(()),
+            Err(error) => Err(error),
+        }
     }
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
@@ -68,9 +69,10 @@ pub mod s3_asset_manager_vault {
         let cpi_ctx: CpiContext<TransferChecked> =
             CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
-
-        Ok(())
+        match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
+            Ok(_) => Ok(()),
+            Err(error) => Err(error),
+        }
     }
 }
 
