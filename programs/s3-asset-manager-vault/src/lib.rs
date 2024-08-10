@@ -35,7 +35,13 @@ pub mod s3_asset_manager_vault {
 
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
-    #[account(init, payer = manager, space = size_of::<Vault>() + 8)]
+    #[account(
+        init,
+        payer = manager,
+        space = size_of::<Vault>() + 8,
+        seeds=[],
+        bump
+    )]
     pub vault: Account<'info, Vault>,
 
     #[account(mut)]
