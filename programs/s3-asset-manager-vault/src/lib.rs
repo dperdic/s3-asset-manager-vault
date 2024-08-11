@@ -35,12 +35,20 @@ pub mod s_3_asset_manager_vault {
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
             Ok(_) => {
-                let customer_vault_account: &mut Account<CustomerVaultAccount> =
-                    &mut ctx.accounts.customer_vault_account;
+                match ctx.accounts.vault_token_account.reload() {
+                    Ok(_) => {
+                        let customer_vault_account: &mut Account<CustomerVaultAccount> =
+                            &mut ctx.accounts.customer_vault_account;
 
-                customer_vault_account.vault_token_account = ctx.accounts.vault_token_account.key();
+                        customer_vault_account.vault_token_account =
+                            ctx.accounts.vault_token_account.key();
 
-                customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
+                        customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
+                    }
+                    Err(_) => {
+                        msg!("Reload failed, balance is not accurate");
+                    }
+                }
 
                 Ok(())
             }
@@ -76,10 +84,17 @@ pub mod s_3_asset_manager_vault {
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
             Ok(_) => {
-                let customer_vault_account: &mut Account<CustomerVaultAccount> =
-                    &mut ctx.accounts.customer_vault_account;
+                match ctx.accounts.vault_token_account.reload() {
+                    Ok(_) => {
+                        let customer_vault_account: &mut Account<CustomerVaultAccount> =
+                            &mut ctx.accounts.customer_vault_account;
 
-                customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
+                        customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
+                    }
+                    Err(_) => {
+                        msg!("Reload failed, balance is not accurate");
+                    }
+                }
 
                 Ok(())
             }
@@ -158,6 +173,7 @@ pub struct Withdraw<'info> {
     pub customer_token_account: Account<'info, TokenAccount>,
 
     #[account(
+        mut,
         seeds = [PDA_VAULT_SEED.as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
         bump
     )]
