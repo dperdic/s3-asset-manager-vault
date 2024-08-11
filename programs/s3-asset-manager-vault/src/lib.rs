@@ -39,7 +39,13 @@ pub mod s_3_asset_manager_vault {
         let cpi_ctx: CpiContext<TransferChecked> = CpiContext::new(cpi_program, cpi_accounts);
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                let vault: &mut Account<Vault> = &mut ctx.accounts.vault;
+
+                vault.total_deposits = vault.total_deposits.checked_add(1).unwrap();
+
+                Ok(())
+            }
             Err(error) => Err(error),
         }
     }
@@ -70,7 +76,13 @@ pub mod s_3_asset_manager_vault {
             CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                let vault: &mut Account<Vault> = &mut ctx.accounts.vault;
+
+                vault.total_deposits = vault.total_deposits.checked_sub(1).unwrap();
+
+                Ok(())
+            }
             Err(error) => Err(error),
         }
     }
@@ -82,6 +94,8 @@ pub struct InitializeVault<'info> {
         init,
         payer = manager,
         space = size_of::<Vault>() + 8,
+        seeds=[PDA_VAULT_SEED.as_ref()],
+        bump
     )]
     pub vault: Account<'info, Vault>,
 
