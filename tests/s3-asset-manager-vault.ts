@@ -56,7 +56,7 @@ const confirmTransaction = async (
 
 const getVaultPda = (): PublicKey => {
   const [vaultPda, vaultPdaBumpState] = PublicKey.findProgramAddressSync(
-    [Buffer.from(PDA_VAULT_SEED), manager.publicKey.toBuffer()],
+    [Buffer.from(PDA_VAULT_SEED)],
     program.programId
   );
 
@@ -148,10 +148,12 @@ describe("s3-asset-manager-vault", () => {
     });
 
     afterEach(async () => {
+      const vaultPda = getVaultPda();
+
       const [customerPDA, customerPdaBumpState] =
         PublicKey.findProgramAddressSync(
           [
-            Buffer.from(PDA_VAULT_SEED),
+            vaultPda.toBytes(),
             Buffer.from(PDA_CUSTOMER_VAULT_ACCOUNT_SEED),
             customer.publicKey.toBytes(),
           ],

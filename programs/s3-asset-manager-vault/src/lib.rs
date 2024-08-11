@@ -77,9 +77,10 @@ pub mod s_3_asset_manager_vault {
         );
 
         let customer_pubkey: Pubkey = ctx.accounts.customer.key();
+        let vault_pubkey: Pubkey = ctx.accounts.vault.key();
 
         let seeds: &[&[u8]; 4] = &[
-            PDA_VAULT_SEED,
+            vault_pubkey.as_ref(),
             PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(),
             customer_pubkey.as_ref(),
             &[ctx.bumps.customer_vault_account],
@@ -126,7 +127,7 @@ pub struct InitializeVault<'info> {
         init,
         payer = manager,
         space = size_of::<Vault>() + 8,
-        seeds=[PDA_VAULT_SEED.as_ref(), manager.key().as_ref()],
+        seeds=[PDA_VAULT_SEED.as_ref()],
         bump
     )]
     pub vault: Account<'info, Vault>,
@@ -155,7 +156,7 @@ pub struct Deposit<'info> {
         init_if_needed,
         payer = customer,
         space = size_of::<CustomerVaultAccount>() + 8,
-        seeds = [PDA_VAULT_SEED.as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
         bump,
     )]
     pub customer_vault_account: Account<'info, CustomerVaultAccount>,
@@ -163,7 +164,7 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,
         payer = customer,
-        seeds = [PDA_VAULT_SEED.as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), customer.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = customer_vault_account
@@ -190,14 +191,14 @@ pub struct Withdraw<'info> {
 
     #[account(
         mut,
-        seeds = [PDA_VAULT_SEED.as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
         bump
     )]
     pub customer_vault_account: Account<'info, CustomerVaultAccount>,
 
     #[account(
         mut,
-        seeds=[PDA_VAULT_SEED, customer.key().as_ref()],
+        seeds=[vault.key().as_ref(), customer.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = customer_vault_account
