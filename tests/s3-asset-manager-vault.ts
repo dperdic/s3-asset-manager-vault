@@ -24,24 +24,47 @@ import {
 import { BN } from "bn.js";
 import { expect } from "chai";
 
+setProvider(AnchorProvider.env());
+
+const program = workspace.S3AssetManagerVault as Program<S3AssetManagerVault>;
+const provider = getProvider();
+const PDA_VAULT_SEED = "vault";
+const PDA_CUSTOMER_VAULT_ACCOUNT_SEED = "customer";
+const TOKEN_DECIMALS = 3;
+
+const manager = Keypair.generate();
+let mint: PublicKey;
+
+let customer: Keypair;
+let customerATA: PublicKey;
+
+const confirmTransaction = async (
+  provider: Provider,
+  tx: string
+): Promise<RpcResponseAndContext<SignatureResult>> => {
+  const bh = await provider.connection.getLatestBlockhash();
+
+  return await provider.connection.confirmTransaction(
+    {
+      signature: tx,
+      blockhash: bh.blockhash,
+      lastValidBlockHeight: bh.lastValidBlockHeight,
+    },
+    "confirmed"
+  );
+};
+
+const getVaultPda = (): PublicKey => {
+  const [vaultPda, vaultPdaBumpState] = PublicKey.findProgramAddressSync(
+    [Buffer.from(PDA_VAULT_SEED), manager.publicKey.toBuffer()],
+    program.programId
+  );
+
+  return vaultPda;
+};
+
 describe("s3-asset-manager-vault", () => {
-  setProvider(AnchorProvider.env());
-
-  const program = workspace.S3AssetManagerVault as Program<S3AssetManagerVault>;
-  const provider = getProvider();
-  const PDA_VAULT_SEED = "vault";
-  const PDA_CUSTOMER_VAULT_ACCOUNT_SEED = "customer";
-  const TOKEN_DECIMALS = 3;
-
-  let manager: Keypair;
-  let mint: PublicKey;
-
-  let customer: Keypair;
-  let customerATA: PublicKey;
-
   before(async () => {
-    manager = Keypair.generate();
-
     const aridropTx = await program.provider.connection.requestAirdrop(
       manager.publicKey,
       5 * LAMPORTS_PER_SOL
@@ -141,21 +164,21 @@ describe("s3-asset-manager-vault", () => {
 
       const ata = await getAccount(provider.connection, customerATA);
 
-      console.log("ata: ", ata.address.toBase58());
-      console.log("ata amount: ", ata.amount);
+      console.log("customer ata: ", ata.address.toBase58());
+      console.log("customer ata balance: ", ata.amount);
 
       console.log(
         "vault token account: ",
         customerAccount.vaultTokenAccount.toBase58()
       );
-      console.log("balance: ", customerAccount.balance.toNumber());
+      console.log(
+        "vault token acount balance: ",
+        customerAccount.balance.toNumber()
+      );
     });
 
     it("should deposit tokens", async () => {
-      const [vaultPda, vaultPdaBumpState] = PublicKey.findProgramAddressSync(
-        [Buffer.from(PDA_VAULT_SEED), manager.publicKey.toBuffer()],
-        program.programId
-      );
+      const vaultPda = getVaultPda();
 
       const depositTx = await program.methods
         .deposit(new BN(3.123 * Math.pow(10, TOKEN_DECIMALS)))
@@ -179,10 +202,7 @@ describe("s3-asset-manager-vault", () => {
     });
 
     it("should deposit tokens into same account", async () => {
-      const [vaultPda, vaultPdaBumpState] = PublicKey.findProgramAddressSync(
-        [Buffer.from(PDA_VAULT_SEED), manager.publicKey.toBuffer()],
-        program.programId
-      );
+      const vaultPda = getVaultPda();
 
       const depositTx = await program.methods
         .deposit(new BN(3.123 * Math.pow(10, TOKEN_DECIMALS)))
@@ -206,10 +226,7 @@ describe("s3-asset-manager-vault", () => {
     });
 
     it("should withdraw tokens", async () => {
-      const [vaultPda, vaultPdaBumpState] = PublicKey.findProgramAddressSync(
-        [Buffer.from(PDA_VAULT_SEED), manager.publicKey.toBuffer()],
-        program.programId
-      );
+      const vaultPda = getVaultPda();
 
       const withdrawTx = await program.methods
         .withdraw(new BN(2.112 * Math.pow(10, TOKEN_DECIMALS)))
@@ -231,21 +248,33 @@ describe("s3-asset-manager-vault", () => {
         throw depositTxConfirmation.value.err;
       }
     });
+
+    it("should fail due to insuficient funds", async () => {
+      const vaultPda = getVaultPda();
+
+      try {
+        const withdrawTx = await program.methods
+          .withdraw(new BN(12.232 * Math.pow(10, TOKEN_DECIMALS)))
+          .accounts({
+            customer: customer.publicKey,
+            customerTokenAccount: customerATA,
+            mint: mint,
+            vault: vaultPda,
+          })
+          .signers([customer])
+          .rpc();
+
+        const depositTxConfirmation = await confirmTransaction(
+          provider,
+          withdrawTx
+        );
+
+        if (depositTxConfirmation.value.err) {
+          throw depositTxConfirmation.value.err;
+        }
+      } catch (error) {
+        expect(error.error.errorCode.number as number).to.equal(6003);
+      }
+    });
   });
 });
-
-const confirmTransaction = async (
-  provider: Provider,
-  tx: string
-): Promise<RpcResponseAndContext<SignatureResult>> => {
-  const bh = await provider.connection.getLatestBlockhash();
-
-  return await provider.connection.confirmTransaction(
-    {
-      signature: tx,
-      blockhash: bh.blockhash,
-      lastValidBlockHeight: bh.lastValidBlockHeight,
-    },
-    "confirmed"
-  );
-};
