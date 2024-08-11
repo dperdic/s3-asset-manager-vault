@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use std::mem::size_of;
 
-declare_id!("8aFjqAEYZLrHdc2F44mTWJRLV8pECgGiP8kwwQZgVEbs");
+declare_id!("9S5bjM3yp8RczYd9CPJYXvG3LQ88v5gK6TeG2fraukEm");
 
 const PDA_VAULT_SEED: &[u8; 5] = b"vault";
 const PDA_CUSTOMER_VAULT_ACCOUNT_SEED: &[u8; 8] = b"customer";
