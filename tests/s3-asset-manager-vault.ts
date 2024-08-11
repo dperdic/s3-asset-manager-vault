@@ -142,7 +142,7 @@ describe("s3-asset-manager-vault", () => {
       const ata = await getAccount(provider.connection, customerATA);
 
       console.log("ata: ", ata.address.toBase58());
-      console.log("ata: ", ata.amount);
+      console.log("ata amount: ", ata.amount);
 
       console.log(
         "vault token account: ",

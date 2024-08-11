@@ -66,7 +66,7 @@ pub mod s_3_asset_manager_vault {
         require!(amount > 0, VaultError::InvalidWithdrawAmount);
 
         require!(
-            ctx.accounts.vault_token_account.amount > 0,
+            ctx.accounts.vault_token_account.amount > amount,
             VaultError::InsufficientFunds
         );
 
@@ -172,7 +172,6 @@ pub struct Deposit<'info> {
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -225,10 +224,8 @@ pub enum VaultError {
     InvalidDepositAmount,
     #[msg("Withdraw amount must be greater than zero.")]
     InvalidWithdrawAmount,
-    #[msg("Invalid mint for the associated token account.")]
+    #[msg("Invalid mint account.")]
     InvalidMint,
-    #[msg("Insufficient funds to withdraw.")]
+    #[msg("Insufficient funds.")]
     InsufficientFunds,
-    #[msg("Unauthorized access.")]
-    Unauthorized,
 }
