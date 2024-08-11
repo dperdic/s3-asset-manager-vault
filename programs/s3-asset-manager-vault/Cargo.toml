@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "s3_asset_manager_vault"
+name = "s_3_asset_manager_vault"
 
 [features]
 default = []

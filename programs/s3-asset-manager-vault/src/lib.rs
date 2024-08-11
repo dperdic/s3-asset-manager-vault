@@ -10,7 +10,7 @@ declare_id!("8aFjqAEYZLrHdc2F44mTWJRLV8pECgGiP8kwwQZgVEbs");
 const PDA_VAULT_SEED: &[u8; 5] = b"vault";
 
 #[program]
-pub mod s3_asset_manager_vault {
+pub mod s_3_asset_manager_vault {
     use anchor_spl::token::{self, TransferChecked};
 
     use super::*;
@@ -166,6 +166,8 @@ pub enum VaultError {
     InvalidDepositAmount,
     #[msg("Withdraw amount must be greater than zero.")]
     InvalidWithdrawAmount,
+    #[msg("Invalid mint for the associated token account.")]
+    InvalidATAMint,
     #[msg("Insufficient funds to withdraw.")]
     InsufficientFunds,
     #[msg("Arithmetic overflow.")]
