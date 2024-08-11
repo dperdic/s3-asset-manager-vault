@@ -1,8 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    // associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
-};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use std::mem::size_of;
 
 declare_id!("8aFjqAEYZLrHdc2F44mTWJRLV8pECgGiP8kwwQZgVEbs");
@@ -11,8 +8,6 @@ const PDA_VAULT_SEED: &[u8; 5] = b"vault";
 
 #[program]
 pub mod s_3_asset_manager_vault {
-    use anchor_spl::token::{self, TransferChecked};
-
     use super::*;
 
     pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
