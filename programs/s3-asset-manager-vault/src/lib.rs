@@ -5,6 +5,7 @@ use std::mem::size_of;
 declare_id!("8aFjqAEYZLrHdc2F44mTWJRLV8pECgGiP8kwwQZgVEbs");
 
 const PDA_VAULT_SEED: &[u8; 5] = b"vault";
+const PDA_CUSTOMER_VAULT_ACCOUNT_SEED: &[u8; 8] = b"customer";
 
 #[program]
 pub mod s_3_asset_manager_vault {
@@ -14,7 +15,6 @@ pub mod s_3_asset_manager_vault {
         let vault: &mut Account<Vault> = &mut ctx.accounts.vault;
 
         vault.manager = ctx.accounts.manager.key();
-        vault.total_deposits = 0;
 
         Ok(())
     }
@@ -35,9 +35,12 @@ pub mod s_3_asset_manager_vault {
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
             Ok(_) => {
-                let vault: &mut Account<Vault> = &mut ctx.accounts.vault;
+                let customer_vault_account: &mut Account<CustomerVaultAccount> =
+                    &mut ctx.accounts.customer_vault_account;
 
-                vault.total_deposits = vault.total_deposits.checked_add(1).unwrap();
+                customer_vault_account.vault_token_account = ctx.accounts.vault_token_account.key();
+
+                customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
 
                 Ok(())
             }
@@ -50,10 +53,11 @@ pub mod s_3_asset_manager_vault {
 
         let customer_pubkey: Pubkey = ctx.accounts.customer.key();
 
-        let seeds: &[&[u8]; 3] = &[
+        let seeds: &[&[u8]; 4] = &[
             PDA_VAULT_SEED,
+            PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(),
             customer_pubkey.as_ref(),
-            &[ctx.bumps.vault_signer],
+            &[ctx.bumps.customer_vault_account],
         ];
 
         let signer_seeds: &[&[&[u8]]; 1] = &[&seeds[..]];
@@ -62,7 +66,7 @@ pub mod s_3_asset_manager_vault {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.vault_token_account.to_account_info(),
             to: ctx.accounts.customer_token_account.to_account_info(),
-            authority: ctx.accounts.vault_signer.to_account_info(),
+            authority: ctx.accounts.customer_vault_account.to_account_info(),
         };
 
         let cpi_program: AccountInfo = ctx.accounts.token_program.to_account_info();
@@ -72,9 +76,10 @@ pub mod s_3_asset_manager_vault {
 
         match token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals) {
             Ok(_) => {
-                let vault: &mut Account<Vault> = &mut ctx.accounts.vault;
+                let customer_vault_account: &mut Account<CustomerVaultAccount> =
+                    &mut ctx.accounts.customer_vault_account;
 
-                vault.total_deposits = vault.total_deposits.checked_sub(1).unwrap();
+                customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
 
                 Ok(())
             }
@@ -89,7 +94,7 @@ pub struct InitializeVault<'info> {
         init,
         payer = manager,
         space = size_of::<Vault>() + 8,
-        seeds=[PDA_VAULT_SEED.as_ref()],
+        seeds=[PDA_VAULT_SEED.as_ref(), manager.key().as_ref()],
         bump
     )]
     pub vault: Account<'info, Vault>,
@@ -117,16 +122,21 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,
         payer = customer,
-        seeds = [PDA_VAULT_SEED, customer.key().as_ref()],
+        space = size_of::<CustomerVaultAccount>() + 8,
+        seeds = [PDA_VAULT_SEED.as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        bump,
+    )]
+    pub customer_vault_account: Account<'info, CustomerVaultAccount>,
+
+    #[account(
+        init_if_needed,
+        payer = customer,
+        seeds = [PDA_VAULT_SEED.as_ref(), customer.key().as_ref()],
         bump,
         token::mint = mint,
-        token::authority = vault_signer
+        token::authority = customer_vault_account
     )]
     pub vault_token_account: Account<'info, TokenAccount>,
-
-    /// CHECK: This is safe because it's derived from the customer key
-    #[account(seeds = [PDA_VAULT_SEED, customer.key().as_ref()], bump)]
-    pub vault_signer: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -148,17 +158,19 @@ pub struct Withdraw<'info> {
     pub customer_token_account: Account<'info, TokenAccount>,
 
     #[account(
+        seeds = [PDA_VAULT_SEED.as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        bump
+    )]
+    pub customer_vault_account: Account<'info, CustomerVaultAccount>,
+
+    #[account(
         mut,
         seeds=[PDA_VAULT_SEED, customer.key().as_ref()],
         bump,
         token::mint = mint,
-        token::authority = vault_signer
+        token::authority = customer_vault_account
     )]
     pub vault_token_account: Account<'info, TokenAccount>,
-
-    /// CHECK: This is safe because it's derived from the customer key
-    #[account(seeds = [PDA_VAULT_SEED, customer.key().as_ref()], bump)]
-    pub vault_signer: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -166,7 +178,12 @@ pub struct Withdraw<'info> {
 #[account]
 pub struct Vault {
     pub manager: Pubkey,
-    pub total_deposits: u64,
+}
+
+#[account]
+pub struct CustomerVaultAccount {
+    pub vault_token_account: Pubkey,
+    pub balance: u64,
 }
 
 #[error_code]
@@ -186,9 +203,3 @@ pub enum VaultError {
     #[msg("Invalid token account.")]
     InvalidTokenAccount,
 }
-
-// #[account]
-// pub struct CustomerDeposit {
-//     pub customer: Pubkey,
-//     pub amount: u64,
-// }
