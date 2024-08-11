@@ -22,6 +22,12 @@ pub mod s_3_asset_manager_vault {
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::InvalidDepositAmount);
 
+        require!(
+            ctx.accounts.mint.key() == ctx.accounts.customer_token_account.mint
+                && ctx.accounts.mint.key() == ctx.accounts.vault_token_account.mint,
+            VaultError::InvalidMint
+        );
+
         let cpi_accounts: TransferChecked = TransferChecked {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.customer_token_account.to_account_info(),
@@ -46,7 +52,7 @@ pub mod s_3_asset_manager_vault {
                         customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
                     }
                     Err(_) => {
-                        msg!("Reload failed, balance is not accurate");
+                        msg!("Reload failed, balance is not accurate!");
                     }
                 }
 
@@ -58,6 +64,17 @@ pub mod s_3_asset_manager_vault {
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::InvalidWithdrawAmount);
+
+        require!(
+            ctx.accounts.vault_token_account.amount > 0,
+            VaultError::InsufficientFunds
+        );
+
+        require!(
+            ctx.accounts.mint.key() == ctx.accounts.customer_token_account.mint
+                && ctx.accounts.mint.key() == ctx.accounts.vault_token_account.mint,
+            VaultError::InvalidMint
+        );
 
         let customer_pubkey: Pubkey = ctx.accounts.customer.key();
 
@@ -92,7 +109,7 @@ pub mod s_3_asset_manager_vault {
                         customer_vault_account.balance = ctx.accounts.vault_token_account.amount;
                     }
                     Err(_) => {
-                        msg!("Reload failed, balance is not accurate");
+                        msg!("Reload failed, balance is not accurate!");
                     }
                 }
 
@@ -209,13 +226,9 @@ pub enum VaultError {
     #[msg("Withdraw amount must be greater than zero.")]
     InvalidWithdrawAmount,
     #[msg("Invalid mint for the associated token account.")]
-    InvalidATAMint,
+    InvalidMint,
     #[msg("Insufficient funds to withdraw.")]
     InsufficientFunds,
-    #[msg("Arithmetic overflow.")]
-    Overflow,
     #[msg("Unauthorized access.")]
     Unauthorized,
-    #[msg("Invalid token account.")]
-    InvalidTokenAccount,
 }
