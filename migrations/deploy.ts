@@ -16,13 +16,17 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   RpcResponseAndContext,
+  sendAndConfirmTransaction,
   SignatureResult,
+  SystemProgram,
+  Transaction,
 } from "@solana/web3.js";
 import {
   createAssociatedTokenAccount,
   createMint,
   mintTo,
 } from "@solana/spl-token";
+import { config } from "dotenv";
 
 const PDA_VAULT_SEED = "vault";
 const PDA_CUSTOMER_VAULT_ACCOUNT_SEED = "customer";
@@ -31,11 +35,16 @@ const TOKEN_DECIMALS = 3;
 module.exports = async function (provider: Provider) {
   setProvider(provider);
 
+  config();
+
   const program = workspace.S3AssetManagerVault as Program<S3AssetManagerVault>;
 
   const deployProvider = getProvider();
 
-  const manager = Keypair.generate();
+  const manager = Keypair.fromSecretKey(
+    Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY))
+  );
+
   const customer = Keypair.generate();
 
   const { mint, customerAta } = await prepareDeploy(
@@ -58,46 +67,62 @@ const prepareDeploy = async (
   program: Program<S3AssetManagerVault>,
   provider: Provider
 ) => {
-  let airdropManager: string;
+  // let airdropManager: string;
 
-  try {
-    airdropManager = await program.provider.connection.requestAirdrop(
-      manager.publicKey,
-      0.6 * LAMPORTS_PER_SOL
-    );
-  } catch (error) {
-    throw "airdrop manager failed";
-  }
+  // try {
+  //   airdropManager = await program.provider.connection.requestAirdrop(
+  //     manager.publicKey,
+  //     0.4 * LAMPORTS_PER_SOL
+  //   );
+  // } catch (error) {
+  //   throw "airdrop manager failed";
+  // }
 
-  const managerConfirmation = await confirmTransaction(
-    provider,
-    airdropManager
+  // const managerConfirmation = await confirmTransaction(
+  //   provider,
+  //   airdropManager
+  // );
+
+  // if (managerConfirmation.value.err) {
+  //   throw managerConfirmation.value.err;
+  // }
+
+  // let airdropCustomer: string;
+
+  // try {
+  //   airdropCustomer = await program.provider.connection.requestAirdrop(
+  //     customer.publicKey,
+  //     0.4 * LAMPORTS_PER_SOL
+  //   );
+  // } catch (error) {
+  //   console.error(error);
+
+  //   throw "airdrop customer failed";
+  // }
+
+  // const customerAirdropConfirmation = await confirmTransaction(
+  //   provider,
+  //   airdropCustomer
+  // );
+
+  // if (customerAirdropConfirmation.value.err) {
+  //   throw customerAirdropConfirmation.value.err;
+  // }
+
+  const transferTx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: manager.publicKey,
+      toPubkey: customer.publicKey,
+      lamports: 1 * LAMPORTS_PER_SOL,
+    })
   );
 
-  if (managerConfirmation.value.err) {
-    throw managerConfirmation.value.err;
-  }
-
-  let airdropCustomer: string;
-
   try {
-    airdropCustomer = await program.provider.connection.requestAirdrop(
-      customer.publicKey,
-      0.6 * LAMPORTS_PER_SOL
-    );
+    await sendAndConfirmTransaction(provider.connection, transferTx, [manager]);
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
-    throw "airdrop customer failed";
-  }
-
-  const customerAirdropConfirmation = await confirmTransaction(
-    provider,
-    airdropCustomer
-  );
-
-  if (customerAirdropConfirmation.value.err) {
-    throw customerAirdropConfirmation.value.err;
+    throw "manager transfer failed";
   }
 
   let mint: PublicKey;
@@ -112,7 +137,7 @@ const prepareDeploy = async (
       TOKEN_DECIMALS
     );
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     throw "create mint failed";
   }
@@ -140,7 +165,7 @@ const prepareDeploy = async (
       BigInt(100 * Math.pow(10, TOKEN_DECIMALS))
     );
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     throw "mint tokens failed";
   }
@@ -161,8 +186,6 @@ const intializeVault = async (
 ) => {
   let tx: string;
 
-  console.log(program.programId);
-
   try {
     tx = await program.methods
       .initializeVault()
@@ -172,7 +195,7 @@ const intializeVault = async (
       .signers([manager])
       .rpc();
   } catch (error) {
-    console.log(error);
+    console.error(error);
     throw "initialize vault failed";
   }
 
@@ -207,7 +230,7 @@ const deposit = async (
       .signers([customer])
       .rpc();
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     throw "deposit failed";
   }
@@ -244,7 +267,7 @@ const withdraw = async (
       .signers([customer])
       .rpc();
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     throw "withdraw failed";
   }
