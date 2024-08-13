@@ -78,11 +78,13 @@ pub mod s_3_asset_manager_vault {
 
         let customer_pubkey: Pubkey = ctx.accounts.customer.key();
         let vault_pubkey: Pubkey = ctx.accounts.vault.key();
+        let mint: Pubkey = ctx.accounts.mint.key();
 
-        let seeds: &[&[u8]; 4] = &[
+        let seeds: &[&[u8]; 5] = &[
             vault_pubkey.as_ref(),
-            PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(),
+            mint.as_ref(),
             customer_pubkey.as_ref(),
+            PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(),
             &[ctx.bumps.customer_vault_account],
         ];
 
@@ -140,13 +142,13 @@ pub struct InitializeVault<'info> {
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
-    #[account(mut)]
+    #[account()]
     pub vault: Account<'info, Vault>,
 
     #[account(mut)]
     pub customer: Signer<'info>,
 
-    #[account(mut)]
+    #[account()]
     pub mint: Account<'info, Mint>,
 
     #[account(mut)]
@@ -156,7 +158,7 @@ pub struct Deposit<'info> {
         init_if_needed,
         payer = customer,
         space = size_of::<CustomerVaultAccount>() + 8,
-        seeds = [vault.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), mint.key().as_ref(), customer.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref()],
         bump,
     )]
     pub customer_vault_account: Account<'info, CustomerVaultAccount>,
@@ -164,7 +166,7 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,
         payer = customer,
-        seeds = [vault.key().as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), mint.key().as_ref(), customer.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = customer_vault_account
@@ -177,13 +179,13 @@ pub struct Deposit<'info> {
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
-    #[account(mut)]
+    #[account()]
     pub vault: Account<'info, Vault>,
 
-    #[account(mut)]
+    #[account()]
     pub customer: Signer<'info>,
 
-    #[account(mut)]
+    #[account()]
     pub mint: Account<'info, Mint>,
 
     #[account(mut)]
@@ -191,14 +193,14 @@ pub struct Withdraw<'info> {
 
     #[account(
         mut,
-        seeds = [vault.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref(), customer.key().as_ref()],
+        seeds = [vault.key().as_ref(), mint.key().as_ref(), customer.key().as_ref(), PDA_CUSTOMER_VAULT_ACCOUNT_SEED.as_ref()],
         bump
     )]
     pub customer_vault_account: Account<'info, CustomerVaultAccount>,
 
     #[account(
         mut,
-        seeds=[vault.key().as_ref(), customer.key().as_ref()],
+        seeds=[vault.key().as_ref(), mint.key().as_ref(), customer.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = customer_vault_account
